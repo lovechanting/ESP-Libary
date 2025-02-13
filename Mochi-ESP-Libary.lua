@@ -9,9 +9,9 @@ ESP.defaultConfig = {
     BoxOutlineThickness = 2,
     BoxInnerOutlineColor = Color3.fromRGB(0, 0, 0),
     BoxInnerOutlineThickness = 1,
-    BoxTransparency = 0.2,
     BoxFillTransparency = 0.8,
     BoxThickness = 2,
+    DoubleOutline = false,
     Enabled = true
 }
 
@@ -22,6 +22,7 @@ function ESP.new(player, config)
     self.boxOutline = nil
     self.boxInnerOutline = nil
     self.boxFill = nil
+    self.outerOutline = nil
     self:createESP()
     table.insert(ESP.espElements, self)
     return self
@@ -48,17 +49,31 @@ function ESP:createESP()
     self.boxFill.Thickness = self.config.BoxThickness
     self.boxFill.Visible = self.config.Enabled
     self.boxFill.Filled = true
+
+    if self.config.DoubleOutline then
+        self.outerOutline = Drawing.new("Square")
+        self.outerOutline.Color = self.config.BoxOutlineColor
+        self.outerOutline.Transparency = 0
+        self.outerOutline.Thickness = self.config.BoxOutlineThickness * 2
+        self.outerOutline.Visible = self.config.Enabled
+        self.outerOutline.Filled = false
+    end
 end
 
 function ESP:update()
-    if not self.player or not self.player.Character or not self.player.Character:FindFirstChild("Head") then
+    if not self.player or not self.player.Character or not self.player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
-    local head = self.player.Character.Head
-    local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+    local humanoidRootPart = self.player.Character.HumanoidRootPart
+    local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(humanoidRootPart.Position)
 
     if onScreen then
         local boxSize = Vector2.new(120, 200)
+
+        if self.config.DoubleOutline then
+            self.outerOutline.Position = Vector2.new(screenPos.X - boxSize.X / 2 - 4, screenPos.Y - boxSize.Y / 2 - 4)
+            self.outerOutline.Size = boxSize + Vector2.new(8, 8)
+        end
 
         self.boxOutline.Position = Vector2.new(screenPos.X - boxSize.X / 2 - 2, screenPos.Y - boxSize.Y / 2 - 2)
         self.boxOutline.Size = boxSize + Vector2.new(4, 4)
@@ -72,6 +87,9 @@ function ESP:update()
         self.boxOutline.Visible = false
         self.boxInnerOutline.Visible = false
         self.boxFill.Visible = false
+        if self.config.DoubleOutline then
+            self.outerOutline.Visible = false
+        end
     end
 end
 
@@ -80,6 +98,9 @@ function ESP:toggleVisibility(visible)
     self.boxOutline.Visible = visible
     self.boxInnerOutline.Visible = visible
     self.boxFill.Visible = visible
+    if self.config.DoubleOutline then
+        self.outerOutline.Visible = visible
+    end
 end
 
 function ESP:destroy()
@@ -92,6 +113,9 @@ function ESP:destroy()
     self.boxOutline:Remove()
     self.boxInnerOutline:Remove()
     self.boxFill:Remove()
+    if self.config.DoubleOutline then
+        self.outerOutline:Remove()
+    end
 end
 
 function ESP.updateAll()
