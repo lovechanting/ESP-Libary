@@ -26,7 +26,8 @@ ESP.defaultConfig = {
     DistanceESP = true,
     DistanceUnit = "Studs",
     HealthDisplayMode = "Percentage",
-    ToolESP = true
+    ToolESP = true,
+    PerformanceStats = true
 }
 
 function ESP.new(player, config)
@@ -40,6 +41,18 @@ function ESP.new(player, config)
 end
 
 function ESP:createESP()
+    self.boxOutline = Drawing.new("Square")
+    self.boxOutline.Color = self.config.BoxOutlineColor
+    self.boxOutline.Thickness = self.config.BoxThickness + 2
+    self.boxOutline.Transparency = self.config.BoxTransparency
+    self.boxOutline.Visible = false
+    self.boxOutline.Filled = false
+
+    self.boxInnerOutline = Drawing.new("Square")
+    self.boxInnerOutline.Color = Color3.fromRGB(0, 0, 0)
+    self.boxInnerOutline.Thickness = 1
+    self.boxInnerOutline.Visible = false
+
     self.box = Drawing.new("Square")
     self.box.Color = self.config.BoxColor
     self.box.Thickness = self.config.BoxThickness
@@ -66,12 +79,10 @@ function ESP:createESP()
         self.healthBar = Drawing.new("Square")
         self.healthBar.Filled = true
         self.healthBar.Visible = false
-        if self.config.HealthBarOutline then
-            self.healthBarOutline = Drawing.new("Square")
-            self.healthBarOutline.Filled = false
-            self.healthBarOutline.Thickness = 2
-            self.healthBarOutline.Visible = false
-        end
+        self.healthBarOutline = Drawing.new("Square")
+        self.healthBarOutline.Filled = false
+        self.healthBarOutline.Thickness = 2
+        self.healthBarOutline.Visible = false
     end
 
     if self.config.ToolESP then
@@ -104,50 +115,24 @@ function ESP:update()
         self.box.Position = Vector2.new(screenPos.X - boxSize.X / 2, screenPos.Y - boxSize.Y / 2)
         self.box.Size = boxSize
         self.box.Visible = true
+
+        self.boxOutline.Position = self.box.Position
+        self.boxOutline.Size = self.box.Size
+        self.boxOutline.Visible = true
+        self.boxInnerOutline.Position = self.box.Position + Vector2.new(1, 1)
+        self.boxInnerOutline.Size = self.box.Size - Vector2.new(2, 2)
+        self.boxInnerOutline.Visible = true
         
         if self.config.NameESP then
             self.name.Text = self.player.DisplayName
             self.name.Position = Vector2.new(screenPos.X, screenPos.Y - boxSize.Y / 2 - 20)
             self.name.Visible = true
         end
-
-        if self.config.HealthESP then
-            local humanoid = self.player.Character:FindFirstChild("Humanoid")
-            if humanoid then
-                local healthText = ""
-                if self.config.HealthDisplayMode == "Percentage" then
-                    healthText = tostring(math.floor((humanoid.Health / humanoid.MaxHealth) * 100)) .. "%"
-                elseif self.config.HealthDisplayMode == "Health" then
-                    healthText = tostring(math.floor(humanoid.Health))
-                else
-                    healthText = tostring(math.floor(humanoid.Health)) .. "/" .. tostring(math.floor(humanoid.MaxHealth))
-                end
-                self.health.Text = healthText
-                self.health.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 10)
-                self.health.Visible = true
-                
-                if self.config.HealthBar then
-                    local healthRatio = humanoid.Health / humanoid.MaxHealth
-                    self.healthBar.Size = Vector2.new(5, boxSize.Y * healthRatio)
-                    local barX = self.config.HealthBarPosition == "Left" and screenPos.X - boxSize.X / 2 - 10 or screenPos.X + boxSize.X / 2 + 5
-                    self.healthBar.Position = Vector2.new(barX, screenPos.Y - boxSize.Y / 2 + (boxSize.Y * (1 - healthRatio)))
-                    self.healthBar.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-                    self.healthBar.Visible = true
-                    if self.config.HealthBarOutline then
-                        self.healthBarOutline.Size = Vector2.new(7, boxSize.Y)
-                        self.healthBarOutline.Position = Vector2.new(barX - 1, screenPos.Y - boxSize.Y / 2)
-                        self.healthBarOutline.Color = Color3.fromRGB(0, 0, 0)
-                        self.healthBarOutline.Visible = true
-                    end
-                end
-            end
-        end
     else
         self.box.Visible = false
+        self.boxOutline.Visible = false
+        self.boxInnerOutline.Visible = false
         if self.config.NameESP then self.name.Visible = false end
-        if self.config.HealthESP then self.health.Visible = false end
-        if self.config.HealthBar then self.healthBar.Visible = false end
-        if self.config.HealthBarOutline then self.healthBarOutline.Visible = false end
     end
 end
 
