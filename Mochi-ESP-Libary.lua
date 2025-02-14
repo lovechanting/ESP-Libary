@@ -8,20 +8,21 @@ ESP.__index = ESP
 ESP.espElements = {}
 
 ESP.defaultConfig = {
-    BoxColor = Color3.fromRGB(0, 0, 0),
-    BoxOutlineColor = Color3.fromRGB(0, 0, 0),
+    BoxColor = Color3.fromRGB(255, 255, 255),
+    BoxOutlineColor = Color3.fromRGB(50, 50, 50),
+    BoxInnerOutlineColor = Color3.fromRGB(0, 0, 0),
     BoxThickness = 2,
-    BoxTransparency = 0.5,
+    BoxTransparency = 0.8,
     NameESP = true,
     NameColor = Color3.fromRGB(255, 255, 255),
     NameSize = 18,
     HealthESP = true,
-    HealthColor = Color3.fromRGB(0, 255, 0),
     HealthSize = 16,
     HealthBar = true,
     HealthBarPosition = "Left",
     NamePosition = "Top",
-    HealthTextPosition = "Bottom"
+    HealthTextPosition = "Bottom",
+    DoubleOutline = true
 }
 
 function ESP.new(player, config)
@@ -42,6 +43,14 @@ function ESP:createESP()
     self.box.Visible = false
     self.box.Filled = false
 
+    if self.config.DoubleOutline then
+        self.boxOutline = Drawing.new("Square")
+        self.boxOutline.Color = self.config.BoxOutlineColor
+        self.boxOutline.Thickness = self.config.BoxThickness + 2
+        self.boxOutline.Transparency = 1
+        self.boxOutline.Visible = false
+    end
+
     if self.config.NameESP then
         self.name = Drawing.new("Text")
         self.name.Color = self.config.NameColor
@@ -51,7 +60,6 @@ function ESP:createESP()
 
     if self.config.HealthESP then
         self.health = Drawing.new("Text")
-        self.health.Color = self.config.HealthColor
         self.health.Size = self.config.HealthSize
         self.health.Visible = false
     end
@@ -76,10 +84,16 @@ function ESP:update()
         self.box.Position = Vector2.new(screenPos.X - boxSize.X / 2, screenPos.Y - boxSize.Y / 2)
         self.box.Size = boxSize
         self.box.Visible = true
+        
+        if self.config.DoubleOutline then
+            self.boxOutline.Position = self.box.Position
+            self.boxOutline.Size = self.box.Size
+            self.boxOutline.Visible = true
+        end
 
         if self.config.NameESP then
             self.name.Text = self.player.Name
-            self.name.Position = Vector2.new(screenPos.X, self.config.NamePosition == "Top" and screenPos.Y - boxSize.Y / 2 - 20 or screenPos.Y + boxSize.Y / 2 + 5)
+            self.name.Position = Vector2.new(screenPos.X, screenPos.Y - boxSize.Y / 2 - 20)
             self.name.Visible = true
         end
 
@@ -87,8 +101,7 @@ function ESP:update()
             local humanoid = self.player.Character:FindFirstChild("Humanoid")
             if humanoid then
                 self.health.Text = tostring(math.floor(humanoid.Health)) .. " HP"
-                local healthOffset = self.config.HealthTextPosition == "Top" and -30 or boxSize.Y / 2 + 10
-                self.health.Position = Vector2.new(screenPos.X, screenPos.Y + healthOffset)
+                self.health.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 10)
                 self.health.Visible = true
 
                 if self.config.HealthBar then
@@ -96,13 +109,14 @@ function ESP:update()
                     self.healthBar.Size = Vector2.new(5, boxSize.Y * healthRatio)
                     local barX = self.config.HealthBarPosition == "Left" and screenPos.X - boxSize.X / 2 - 10 or screenPos.X + boxSize.X / 2 + 5
                     self.healthBar.Position = Vector2.new(barX, screenPos.Y - boxSize.Y / 2 + (boxSize.Y * (1 - healthRatio)))
-                    self.healthBar.Color = self.config.HealthColor
+                    self.healthBar.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
                     self.healthBar.Visible = true
                 end
             end
         end
     else
         self.box.Visible = false
+        if self.boxOutline then self.boxOutline.Visible = false end
         if self.config.NameESP then self.name.Visible = false end
         if self.config.HealthESP then self.health.Visible = false end
         if self.config.HealthBar then self.healthBar.Visible = false end
@@ -111,6 +125,7 @@ end
 
 function ESP:remove()
     if self.box then self.box:Remove() end
+    if self.boxOutline then self.boxOutline:Remove() end
     if self.name then self.name:Remove() end
     if self.health then self.health:Remove() end
     if self.healthBar then self.healthBar:Remove() end
@@ -130,6 +145,10 @@ function ESP.cleanup()
         end
     end
 end
+
+Players.PlayerAdded:Connect(function(player)
+    ESP.new(player)
+end)
 
 RunService.RenderStepped:Connect(function()
     ESP.updateAll()
