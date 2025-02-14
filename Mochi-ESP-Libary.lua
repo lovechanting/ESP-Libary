@@ -29,7 +29,7 @@ ESP.defaultConfig = {
 }
 
 function ESP.new(player, config)
-    if player == LocalPlayer or not player.Character then return end
+    if player == LocalPlayer then return end
     local self = setmetatable({}, ESP)
     self.config = setmetatable(config or {}, {__index = ESP.defaultConfig})
     self.player = player
@@ -76,6 +76,23 @@ function ESP:createESP()
         self.tool.Center = true
         self.tool.Visible = false
     end
+    
+    if self.config.HealthESP then
+        self.health = Drawing.new("Text")
+        self.health.Size = self.config.HealthSize
+        self.health.Center = true
+        self.health.Visible = false
+    end
+    
+    if self.config.HealthBar then
+        self.healthBar = Drawing.new("Square")
+        self.healthBar.Filled = true
+        self.healthBar.Visible = false
+        self.healthBarOutline = Drawing.new("Square")
+        self.healthBarOutline.Filled = false
+        self.healthBarOutline.Thickness = 2
+        self.healthBarOutline.Visible = false
+    end
 end
 
 function ESP:update()
@@ -83,6 +100,7 @@ function ESP:update()
     local root = self.player.Character.HumanoidRootPart
     local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
     local distance = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude) or math.huge
+    
     if onScreen and distance <= self.config.RenderDistance then
         local boxSize = Vector2.new(120, 200)
         self.box.Position = Vector2.new(screenPos.X - boxSize.X / 2, screenPos.Y - boxSize.Y / 2)
@@ -91,16 +109,19 @@ function ESP:update()
         self.boxOutline.Position = self.box.Position
         self.boxOutline.Size = self.box.Size
         self.boxOutline.Visible = true
+        
         if self.config.NameESP then
             self.name.Text = self.player.DisplayName
             self.name.Position = Vector2.new(screenPos.X, screenPos.Y - boxSize.Y / 2 - 20)
             self.name.Visible = true
         end
+        
         if self.config.DistanceESP then
             self.distance.Text = string.format("%.1f %s", distance, self.config.DistanceUnit)
             self.distance.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 5)
             self.distance.Visible = true
         end
+        
         if self.config.ToolESP and self.player.Character:FindFirstChildOfClass("Tool") then
             self.tool.Text = self.player.Character:FindFirstChildOfClass("Tool").Name
             self.tool.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 20)
@@ -108,21 +129,42 @@ function ESP:update()
         else
             self.tool.Visible = false
         end
+        
+        if self.config.HealthESP and self.player.Character:FindFirstChild("Humanoid") then
+            local humanoid = self.player.Character:FindFirstChild("Humanoid")
+            self.health.Text = string.format("%d%%", (humanoid.Health / humanoid.MaxHealth) * 100)
+            self.health.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 35)
+            self.health.Visible = true
+            
+            if self.config.HealthBar then
+                self.healthBar.Size = Vector2.new(5, (boxSize.Y) * (humanoid.Health / humanoid.MaxHealth))
+                self.healthBar.Position = Vector2.new(screenPos.X - boxSize.X / 2 - 10, screenPos.Y - boxSize.Y / 2)
+                self.healthBar.Visible = true
+                self.healthBarOutline.Position = self.healthBar.Position
+                self.healthBarOutline.Size = Vector2.new(5, boxSize.Y)
+                self.healthBarOutline.Visible = true
+            end
+        else
+            self.health.Visible = false
+            self.healthBar.Visible = false
+            self.healthBarOutline.Visible = false
+        end
     else
         self.box.Visible = false
         self.boxOutline.Visible = false
-        if self.config.NameESP then self.name.Visible = false end
-        if self.config.DistanceESP then self.distance.Visible = false end
-        if self.config.ToolESP then self.tool.Visible = false end
+        self.name.Visible = false
+        self.distance.Visible = false
+        self.tool.Visible = false
+        self.health.Visible = false
+        self.healthBar.Visible = false
+        self.healthBarOutline.Visible = false
     end
 end
 
 function ESP:remove()
-    if self.box then self.box:Remove() end
-    if self.boxOutline then self.boxOutline:Remove() end
-    if self.name then self.name:Remove() end
-    if self.distance then self.distance:Remove() end
-    if self.tool then self.tool:Remove() end
+    for _, v in pairs(self) do
+        if typeof(v) == "userdata" then v:Remove() end
+    end
     ESP.espElements[self.player] = nil
 end
 
