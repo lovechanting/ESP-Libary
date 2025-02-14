@@ -104,7 +104,7 @@ end
 
 function ESP:update()
     if not self.player or not self.player.Parent or not self.player.Character or not self.player.Character:FindFirstChild("HumanoidRootPart") then
-        self:remove()
+        ESP.espElements[self.player] = nil
         return
     end
     local root = self.player.Character.HumanoidRootPart
@@ -150,16 +150,28 @@ function ESP:remove()
 end
 
 function ESP.updateAll()
+    local toRemove = {}
     for player, esp in pairs(ESP.espElements) do
-        esp:update()
+        if player.Parent then
+            esp:update()
+        else
+            table.insert(toRemove, player)
+        end
+    end
+    for _, player in ipairs(toRemove) do
+        ESP.espElements[player]:remove()
     end
 end
 
 function ESP.cleanup()
+    local toRemove = {}
     for player, esp in pairs(ESP.espElements) do
         if not player.Parent then
-            esp:remove()
+            table.insert(toRemove, player)
         end
+    end
+    for _, player in ipairs(toRemove) do
+        ESP.espElements[player]:remove()
     end
 end
 
