@@ -18,6 +18,10 @@ ESP.defaultConfig = {
     HealthESP = true,
     HealthColor = Color3.fromRGB(0, 255, 0),
     HealthSize = 16,
+    HealthBar = true,
+    HealthBarPosition = "Left",
+    NamePosition = "Top",
+    HealthTextPosition = "Bottom"
 }
 
 function ESP.new(player, config)
@@ -26,7 +30,7 @@ function ESP.new(player, config)
     self.config = setmetatable(config or {}, {__index = ESP.defaultConfig})
     self.player = player
     self:createESP()
-    table.insert(ESP.espElements, self)
+    ESP.espElements[player] = self
     return self
 end
 
@@ -51,15 +55,22 @@ function ESP:createESP()
         self.health.Size = self.config.HealthSize
         self.health.Visible = false
     end
+
+    if self.config.HealthBar then
+        self.healthBar = Drawing.new("Square")
+        self.healthBar.Filled = true
+        self.healthBar.Visible = false
+    end
 end
 
 function ESP:update()
-    if not self.player or not self.player.Character or not self.player.Character:FindFirstChild("HumanoidRootPart") then
+    if not self.player or not self.player.Parent or not self.player.Character or not self.player.Character:FindFirstChild("HumanoidRootPart") then
+        self:remove()
         return
     end
     local root = self.player.Character.HumanoidRootPart
     local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-
+    
     if onScreen then
         local boxSize = Vector2.new(120, 200)
         self.box.Position = Vector2.new(screenPos.X - boxSize.X / 2, screenPos.Y - boxSize.Y / 2)
@@ -68,7 +79,7 @@ function ESP:update()
 
         if self.config.NameESP then
             self.name.Text = self.player.Name
-            self.name.Position = Vector2.new(screenPos.X, screenPos.Y - boxSize.Y / 2 - 20)
+            self.name.Position = Vector2.new(screenPos.X, self.config.NamePosition == "Top" and screenPos.Y - boxSize.Y / 2 - 20 or screenPos.Y + boxSize.Y / 2 + 5)
             self.name.Visible = true
         end
 
@@ -76,23 +87,53 @@ function ESP:update()
             local humanoid = self.player.Character:FindFirstChild("Humanoid")
             if humanoid then
                 self.health.Text = tostring(math.floor(humanoid.Health)) .. " HP"
-                self.health.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2)
+                local healthOffset = self.config.HealthTextPosition == "Top" and -30 or boxSize.Y / 2 + 10
+                self.health.Position = Vector2.new(screenPos.X, screenPos.Y + healthOffset)
                 self.health.Visible = true
+
+                if self.config.HealthBar then
+                    local healthRatio = humanoid.Health / humanoid.MaxHealth
+                    self.healthBar.Size = Vector2.new(5, boxSize.Y * healthRatio)
+                    local barX = self.config.HealthBarPosition == "Left" and screenPos.X - boxSize.X / 2 - 10 or screenPos.X + boxSize.X / 2 + 5
+                    self.healthBar.Position = Vector2.new(barX, screenPos.Y - boxSize.Y / 2 + (boxSize.Y * (1 - healthRatio)))
+                    self.healthBar.Color = self.config.HealthColor
+                    self.healthBar.Visible = true
+                end
             end
         end
     else
         self.box.Visible = false
         if self.config.NameESP then self.name.Visible = false end
         if self.config.HealthESP then self.health.Visible = false end
+        if self.config.HealthBar then self.healthBar.Visible = false end
     end
 end
 
+function ESP:remove()
+    if self.box then self.box:Remove() end
+    if self.name then self.name:Remove() end
+    if self.health then self.health:Remove() end
+    if self.healthBar then self.healthBar:Remove() end
+    ESP.espElements[self.player] = nil
+end
+
 function ESP.updateAll()
-    for _, esp in ipairs(ESP.espElements) do
+    for player, esp in pairs(ESP.espElements) do
         esp:update()
     end
 end
 
-RunService.RenderStepped:Connect(ESP.updateAll)
+function ESP.cleanup()
+    for player, esp in pairs(ESP.espElements) do
+        if not Players:FindFirstChild(player.Name) then
+            esp:remove()
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    ESP.updateAll()
+    ESP.cleanup()
+end)
 
 return ESP
