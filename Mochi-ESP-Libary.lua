@@ -19,15 +19,10 @@ ESP.defaultConfig = {
     HealthSize = 14,
     HealthBar = true,
     HealthBarOutline = true,
-    HealthBarPosition = "Left",
-    NamePosition = "Top",
-    HealthTextPosition = "Bottom",
     RenderDistance = 1000,
     DistanceESP = true,
-    DistanceUnit = "Studs",
     HealthDisplayMode = "Percentage",
-    ToolESP = true,
-    PerformanceStats = true
+    ToolESP = true
 }
 
 function ESP.new(player, config)
@@ -48,11 +43,6 @@ function ESP:createESP()
     self.boxOutline.Visible = false
     self.boxOutline.Filled = false
 
-    self.boxInnerOutline = Drawing.new("Square")
-    self.boxInnerOutline.Color = Color3.fromRGB(0, 0, 0)
-    self.boxInnerOutline.Thickness = 1
-    self.boxInnerOutline.Visible = false
-
     self.box = Drawing.new("Square")
     self.box.Color = self.config.BoxColor
     self.box.Thickness = self.config.BoxThickness
@@ -67,50 +57,15 @@ function ESP:createESP()
         self.name.Center = true
         self.name.Visible = false
     end
-
-    if self.config.HealthESP then
-        self.health = Drawing.new("Text")
-        self.health.Size = self.config.HealthSize
-        self.health.Center = true
-        self.health.Visible = false
-    end
-
-    if self.config.HealthBar then
-        self.healthBar = Drawing.new("Square")
-        self.healthBar.Filled = true
-        self.healthBar.Visible = false
-        self.healthBarOutline = Drawing.new("Square")
-        self.healthBarOutline.Filled = false
-        self.healthBarOutline.Thickness = 2
-        self.healthBarOutline.Visible = false
-    end
-
-    if self.config.ToolESP then
-        self.tool = Drawing.new("Text")
-        self.tool.Color = self.config.NameColor
-        self.tool.Size = 14
-        self.tool.Center = true
-        self.tool.Visible = false
-    end
-
-    if self.config.DistanceESP then
-        self.distance = Drawing.new("Text")
-        self.distance.Color = self.config.NameColor
-        self.distance.Size = 14
-        self.distance.Center = true
-        self.distance.Visible = false
-    end
 end
 
 function ESP:update()
-    if not self.player or not self.player.Parent or not self.player.Character or not self.player.Character:FindFirstChild("HumanoidRootPart") then
-        self:remove()
-        return
-    end
-    local root = self.player.Character.HumanoidRootPart
+    if not self.player or not self.player.Parent or not self.player.Character then self:remove() return end
+    local root = self.player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then self:remove() return end
     local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-    
-    if onScreen and (LocalPlayer:DistanceFromCharacter(root.Position) <= self.config.RenderDistance) then
+    local distance = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude) or math.huge
+    if onScreen and distance <= self.config.RenderDistance then
         local boxSize = Vector2.new(120, 200)
         self.box.Position = Vector2.new(screenPos.X - boxSize.X / 2, screenPos.Y - boxSize.Y / 2)
         self.box.Size = boxSize
@@ -119,9 +74,6 @@ function ESP:update()
         self.boxOutline.Position = self.box.Position
         self.boxOutline.Size = self.box.Size
         self.boxOutline.Visible = true
-        self.boxInnerOutline.Position = self.box.Position + Vector2.new(1, 1)
-        self.boxInnerOutline.Size = self.box.Size - Vector2.new(2, 2)
-        self.boxInnerOutline.Visible = true
         
         if self.config.NameESP then
             self.name.Text = self.player.DisplayName
@@ -131,7 +83,6 @@ function ESP:update()
     else
         self.box.Visible = false
         self.boxOutline.Visible = false
-        self.boxInnerOutline.Visible = false
         if self.config.NameESP then self.name.Visible = false end
     end
 end
@@ -139,27 +90,13 @@ end
 function ESP:remove()
     if self.box then self.box:Remove() end
     if self.boxOutline then self.boxOutline:Remove() end
-    if self.boxInnerOutline then self.boxInnerOutline:Remove() end
     if self.name then self.name:Remove() end
-    if self.health then self.health:Remove() end
-    if self.healthBar then self.healthBar:Remove() end
-    if self.healthBarOutline then self.healthBarOutline:Remove() end
-    if self.tool then self.tool:Remove() end
-    if self.distance then self.distance:Remove() end
     ESP.espElements[self.player] = nil
 end
 
 function ESP.updateAll()
-    for player, esp in pairs(ESP.espElements) do
+    for _, esp in pairs(ESP.espElements) do
         esp:update()
-    end
-end
-
-function ESP.cleanup()
-    for player, esp in pairs(ESP.espElements) do
-        if not player.Parent then
-            esp:remove()
-        end
     end
 end
 
@@ -175,7 +112,6 @@ end)
 
 RunService.RenderStepped:Connect(function()
     ESP.updateAll()
-    ESP.cleanup()
 end)
 
 return ESP
