@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+local RemoteSpy = game:GetService("LogService")
 
 local ESP = {}
 ESP.__index = ESP
@@ -25,7 +26,9 @@ ESP.defaultConfig = {
     DistanceUnit = "Studs",
     HealthDisplayMode = "Percentage",
     ToolESP = true,
-    PerformanceStats = true
+    PerformanceStats = true,
+    SnapLines = true,
+    AimImprover = true
 }
 
 function ESP.new(player, config)
@@ -52,6 +55,11 @@ function ESP:createESP()
     self.box.Transparency = self.config.BoxTransparency
     self.box.Visible = false
     self.box.Filled = self.config.BoxFilled
+
+    self.snapLine = Drawing.new("Line")
+    self.snapLine.Thickness = 1
+    self.snapLine.Color = Color3.fromRGB(255, 255, 255)
+    self.snapLine.Visible = false
 
     if self.config.NameESP then
         self.name = Drawing.new("Text")
@@ -109,6 +117,12 @@ function ESP:update()
         self.boxOutline.Position = self.box.Position
         self.boxOutline.Size = self.box.Size
         self.boxOutline.Visible = true
+
+        if self.config.SnapLines then
+            self.snapLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 50)
+            self.snapLine.To = Vector2.new(screenPos.X, screenPos.Y)
+            self.snapLine.Visible = true
+        end
         
         if self.config.NameESP then
             self.name.Text = self.player.DisplayName
@@ -129,35 +143,13 @@ function ESP:update()
         else
             self.tool.Visible = false
         end
-        
-        if self.config.HealthESP and self.player.Character:FindFirstChild("Humanoid") then
-            local humanoid = self.player.Character:FindFirstChild("Humanoid")
-            self.health.Text = string.format("%d%%", (humanoid.Health / humanoid.MaxHealth) * 100)
-            self.health.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 35)
-            self.health.Visible = true
-            
-            if self.config.HealthBar then
-                self.healthBar.Size = Vector2.new(5, (boxSize.Y) * (humanoid.Health / humanoid.MaxHealth))
-                self.healthBar.Position = Vector2.new(screenPos.X - boxSize.X / 2 - 10, screenPos.Y - boxSize.Y / 2)
-                self.healthBar.Visible = true
-                self.healthBarOutline.Position = self.healthBar.Position
-                self.healthBarOutline.Size = Vector2.new(5, boxSize.Y)
-                self.healthBarOutline.Visible = true
-            end
-        else
-            self.health.Visible = false
-            self.healthBar.Visible = false
-            self.healthBarOutline.Visible = false
-        end
     else
         self.box.Visible = false
         self.boxOutline.Visible = false
+        self.snapLine.Visible = false
         self.name.Visible = false
         self.distance.Visible = false
         self.tool.Visible = false
-        self.health.Visible = false
-        self.healthBar.Visible = false
-        self.healthBarOutline.Visible = false
     end
 end
 
