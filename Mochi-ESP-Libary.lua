@@ -142,37 +142,37 @@ function ESP:update()
                 end
             end
         end
-
-        if self.config.ToolESP then
-            local tool = self.player.Character:FindFirstChildOfClass("Tool")
-            if tool then
-                self.tool.Text = tool.Name
-                self.tool.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 25)
-                self.tool.Visible = true
-            else
-                self.tool.Visible = false
-            end
-        end
-
-        if self.config.DistanceESP then
-            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude
-            self.distance.Text = tostring(math.floor(distance)) .. (self.config.DistanceUnit == "Meters" and "m" or " studs")
-            self.distance.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 40)
-            self.distance.Visible = true
-        end
     else
         self.box.Visible = false
         if self.config.NameESP then self.name.Visible = false end
         if self.config.HealthESP then self.health.Visible = false end
         if self.config.HealthBar then self.healthBar.Visible = false end
         if self.config.HealthBarOutline then self.healthBarOutline.Visible = false end
-        if self.config.ToolESP then self.tool.Visible = false end
-        if self.config.DistanceESP then self.distance.Visible = false end
+    end
+end
+
+function ESP.updateAll()
+    for _, esp in pairs(ESP.espElements) do
+        esp:update()
+    end
+end
+
+function ESP.cleanup()
+    for player, esp in pairs(ESP.espElements) do
+        if not player.Parent then
+            ESP.espElements[player] = nil
+        end
     end
 end
 
 Players.PlayerAdded:Connect(function(player)
     ESP.new(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if ESP.espElements[player] then
+        ESP.espElements[player]:remove()
+    end
 end)
 
 RunService.RenderStepped:Connect(function()
