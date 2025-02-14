@@ -3,6 +3,9 @@ local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local RemoteSpy = game:GetService("LogService")
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
 
 local ESP = {}
 ESP.__index = ESP
@@ -30,6 +33,26 @@ ESP.defaultConfig = {
     SnapLines = true,
     AimImprover = true
 }
+
+local function getClosestPlayerToCursor()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local mouseLocation = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+            if onScreen then
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mouseLocation).Magnitude
+                if distance < shortestDistance then
+                    closestPlayer = player
+                    shortestDistance = distance
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
 
 function ESP.new(player, config)
     if player == LocalPlayer then return end
@@ -60,47 +83,6 @@ function ESP:createESP()
     self.snapLine.Thickness = 1
     self.snapLine.Color = Color3.fromRGB(255, 255, 255)
     self.snapLine.Visible = false
-
-    if self.config.NameESP then
-        self.name = Drawing.new("Text")
-        self.name.Color = self.config.NameColor
-        self.name.Size = self.config.NameSize
-        self.name.Center = true
-        self.name.Visible = false
-    end
-    
-    if self.config.DistanceESP then
-        self.distance = Drawing.new("Text")
-        self.distance.Color = self.config.NameColor
-        self.distance.Size = 14
-        self.distance.Center = true
-        self.distance.Visible = false
-    end
-    
-    if self.config.ToolESP then
-        self.tool = Drawing.new("Text")
-        self.tool.Color = self.config.NameColor
-        self.tool.Size = 14
-        self.tool.Center = true
-        self.tool.Visible = false
-    end
-    
-    if self.config.HealthESP then
-        self.health = Drawing.new("Text")
-        self.health.Size = self.config.HealthSize
-        self.health.Center = true
-        self.health.Visible = false
-    end
-    
-    if self.config.HealthBar then
-        self.healthBar = Drawing.new("Square")
-        self.healthBar.Filled = true
-        self.healthBar.Visible = false
-        self.healthBarOutline = Drawing.new("Square")
-        self.healthBarOutline.Filled = false
-        self.healthBarOutline.Thickness = 2
-        self.healthBarOutline.Visible = false
-    end
 end
 
 function ESP:update()
@@ -110,46 +92,11 @@ function ESP:update()
     local distance = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude) or math.huge
     
     if onScreen and distance <= self.config.RenderDistance then
-        local boxSize = Vector2.new(120, 200)
-        self.box.Position = Vector2.new(screenPos.X - boxSize.X / 2, screenPos.Y - boxSize.Y / 2)
-        self.box.Size = boxSize
-        self.box.Visible = true
-        self.boxOutline.Position = self.box.Position
-        self.boxOutline.Size = self.box.Size
-        self.boxOutline.Visible = true
-
-        if self.config.SnapLines then
-            self.snapLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 50)
-            self.snapLine.To = Vector2.new(screenPos.X, screenPos.Y)
-            self.snapLine.Visible = true
-        end
-        
-        if self.config.NameESP then
-            self.name.Text = self.player.DisplayName
-            self.name.Position = Vector2.new(screenPos.X, screenPos.Y - boxSize.Y / 2 - 20)
-            self.name.Visible = true
-        end
-        
-        if self.config.DistanceESP then
-            self.distance.Text = string.format("%.1f %s", distance, self.config.DistanceUnit)
-            self.distance.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 5)
-            self.distance.Visible = true
-        end
-        
-        if self.config.ToolESP and self.player.Character:FindFirstChildOfClass("Tool") then
-            self.tool.Text = self.player.Character:FindFirstChildOfClass("Tool").Name
-            self.tool.Position = Vector2.new(screenPos.X, screenPos.Y + boxSize.Y / 2 + 20)
-            self.tool.Visible = true
-        else
-            self.tool.Visible = false
-        end
+        self.snapLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 50)
+        self.snapLine.To = Vector2.new(screenPos.X, screenPos.Y)
+        self.snapLine.Visible = self.config.SnapLines
     else
-        self.box.Visible = false
-        self.boxOutline.Visible = false
         self.snapLine.Visible = false
-        self.name.Visible = false
-        self.distance.Visible = false
-        self.tool.Visible = false
     end
 end
 
@@ -165,6 +112,18 @@ function ESP.updateAll()
         esp:update()
     end
 end
+
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    if ESP.defaultConfig.AimImprover and typeof(args[1]) == "Vector3" then
+        local closestPlayer = getClosestPlayerToCursor()
+        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            args[1] = closestPlayer.Character.HumanoidRootPart.Position
+        end
+    end
+    return oldNamecall(self, unpack(args))
+end)
 
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
