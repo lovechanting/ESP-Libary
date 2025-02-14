@@ -136,8 +136,21 @@ function ESP:update()
     end
 end
 
+function ESP:remove()
+    if self.box then self.box:Remove() end
+    if self.boxOutline then self.boxOutline:Remove() end
+    if self.boxInnerOutline then self.boxInnerOutline:Remove() end
+    if self.name then self.name:Remove() end
+    if self.health then self.health:Remove() end
+    if self.healthBar then self.healthBar:Remove() end
+    if self.healthBarOutline then self.healthBarOutline:Remove() end
+    if self.tool then self.tool:Remove() end
+    if self.distance then self.distance:Remove() end
+    ESP.espElements[self.player] = nil
+end
+
 function ESP.updateAll()
-    for _, esp in pairs(ESP.espElements) do
+    for player, esp in pairs(ESP.espElements) do
         esp:update()
     end
 end
@@ -145,7 +158,7 @@ end
 function ESP.cleanup()
     for player, esp in pairs(ESP.espElements) do
         if not player.Parent then
-            ESP.espElements[player] = nil
+            esp:remove()
         end
     end
 end
